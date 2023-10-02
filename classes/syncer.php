@@ -132,7 +132,7 @@ class syncer {
     {
         $retval = -1;
         $output = '';
-        $cmd = sprintf('rsync --timeout=%d -e \'ssh -p %d\' -a --delete -h --stats %s %s@%s:%s',
+        $cmd = sprintf('rsync --timeout=%d -e \'ssh -p %d\' --size-only -rl --delete -h --stats %s %s@%s:%s',
             $this->config->getValue('global', 'rsync_timeout'),
             $this->config->getValue('global', 'ssh_port'),
             $this->config->getValue('global', 'temp_dir'),
