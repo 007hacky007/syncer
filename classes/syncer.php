@@ -145,6 +145,19 @@ class syncer {
         log::info(implode("\n", $output));
         if($retval === 0) {
             log::info("Sync successful");
+            if(!empty($this->config->getValue('global', 'post_sync_command'))) {
+                log::debug('Executing: ' . $this->config->getValue('global', 'post_sync_command'));
+                $output_post_command = '';
+                $retval_post_command = -1;
+                exec($this->config->getValue('global', 'post_sync_command'), $output_post_command, $retval_post_command);
+                log::info(implode("\n", $output_post_command));
+                if($retval_post_command === 0){
+                    /** @noinspection PhpParamsInspection */
+                    log::info("Post-sync command execution successful");
+                } else {
+                    log::error("Post-sync command execution failed: $retval_post_command");
+                }
+            }
             return true;
         }
         log::error("Sync failed");
