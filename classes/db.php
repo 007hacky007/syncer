@@ -39,6 +39,11 @@ class db {
         return $this->query("select path from files where state = 'failed'", PDO::FETCH_COLUMN);
     }
 
+    public function getQueuedAndFailedFiles(): array
+    {
+        return $this->query("select path from files where state = 'queued' or state = 'failed'", PDO::FETCH_COLUMN);
+    }
+
     public function setFileToQueued(string $path, string $srcDirName, string $tmpPath): void
     {
         $sth = $this->connection->prepare("update files set state = 'queued',temp_path = :tmp_path where path = :path and src_dir_name = :src_dir_name");

@@ -165,10 +165,16 @@ class syncer {
         return false;
     }
 
-    public function syncNewFiles(): void
+    public function syncNewFiles(bool $bypassSyncCheck = false): void
     {
+        if(!$this->db->getQueuedAndFailedFiles() && !$bypassSyncCheck) {
+            log::debug("Nothing to sync, skipping rsync");
+            return;
+        }
+
         if($this->syncToDestination()) {
             $this->db->setQueuedToCompleted();
+            $this->db->setFailedToCompleted();
         } else {
             $this->db->setQueuedToFailed();
         }
@@ -179,6 +185,7 @@ class syncer {
         if(count($this->db->getFailedFiles()) === 0)
             return true;
 
+        log::info("Retrying previously failed transfer...");
         if($this->syncToDestination()) {
             $this->db->setFailedToCompleted();
             log::info('Successfully synced previously failed transfers');

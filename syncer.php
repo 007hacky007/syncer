@@ -23,6 +23,7 @@ $syncer = new syncer($config);
 
 // initial scan
 $syncer->addNewFilesToDb();
+$syncer->syncNewFiles(true);
 // attach inotify watches
 $syncer->attachInotifyWatches();
 while(true) {
