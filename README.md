@@ -13,5 +13,5 @@ TODO:
 * install files to the correct paths (i.e. config in /etc and program files in /usr)
 * use systemd
 * maybe create single phar archive?
-* test handling of partial files
 * exception handling
+* implement Google Photos API
