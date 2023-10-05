@@ -9,9 +9,6 @@ which uploads files to some cloud service (i.e. Google Photos).
 * Tested on PHP 8.2 (php-sqlite3 and pecl inotify extensions required)
 
 TODO:
-* CI pipeline with deb package on the output
-* install files to the correct paths (i.e. config in /etc and program files in /usr)
-* use systemd
 * maybe create single phar archive?
 * exception handling
 * implement Google Photos API

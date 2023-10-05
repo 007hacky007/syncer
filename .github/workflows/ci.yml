@@ -1,0 +1,172 @@
+name: Build and Release
+
+on:
+  push:
+
+env:
+  VERSION: '1.0.0'
+  BUILD_DIR: dist
+
+jobs:
+  create_draft_release:
+    name: Create Draft Release
+    runs-on: ubuntu-20.04
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          draft: true
+
+
+  build_and_upload_linux:
+    name: Build and Upload Linux package
+    runs-on: ubuntu-20.04
+    needs: create_draft_release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Mandatory to use the extract version from tag action
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          extensions: inotify
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --prefer-stable --no-progress --no-suggest --ignore-platform-reqs
+
+      - name: Prepare Debian package structure
+        run: |
+          mkdir -p ${{ env.BUILD_DIR }}/DEBIAN ${{ env.BUILD_DIR }}/usr/lib/syncer 
+          mkdir -p ${{ env.BUILD_DIR }}/var/lib/syncer ${{ env.BUILD_DIR }}/etc/syncer ${{ env.BUILD_DIR }}/lib/systemd/system/
+          ### deb control file
+          cat > ${{ env.BUILD_DIR }}/DEBIAN/control <<EOF
+          Package: syncer
+          Version: ${{ env.VERSION }}
+          Architecture: all
+          Maintainer: 007hacky007
+          Description: Syncer
+          Depends: php-cli, sqlite3
+          EOF
+          
+          ### deb postinst
+          cat > ${{ env.BUILD_DIR }}/DEBIAN/postinst <<EOF
+          #!/bin/sh
+          
+          set -e
+          
+            configure|abort-upgrade|abort-remove|abort-deconfigure)
+              :
+            ;;
+          
+            *)
+              echo \"postinst called with unknown argument '\$1'\" >&2
+              exit 1
+            ;;
+          esac
+          
+          if [ \"\$1\" = \"configure\" ] || [ \"\$1\" = \"abort-upgrade\" ] || [ \"\$1\" = \"abort-deconfigure\" ] || [ \"\$1\" = \"abort-remove\" ] ; then
+            # This will only remove masks created by d-s-h on package removal.
+            deb-systemd-helper unmask 'syncer.service' >/dev/null || true
+          
+          fi
+          
+          if [ \"\$1\" = \"configure\" ] || [ \"\$1\" = \"abort-upgrade\" ] || [ \"\$1\" = \"abort-deconfigure\" ] || [ \"\$1\" = \"abort-remove\" ] ; then
+            if [ -d /run/systemd/system ]; then
+              [ ! -f /var/lib/syncer/db.sqlite ] && sqlite3 /var/lib/syncer/db.sqlite < /usr/lib/syncer/schema.sql && echo "Created empty sqlite db at /var/lib/syncer/db.sqlite"
+              systemctl --system daemon-reload >/dev/null || true
+              systemctl enable syncer
+              if systemctl is-active --quiet syncer ; then
+                systemctl restart syncer
+              else
+                systemctl start syncer
+              fi
+            fi
+          fi
+          
+          
+          exit 0
+          EOF
+          
+          ### deb prerm
+          cat > ${{ env.BUILD_DIR }}/DEBIAN/prerm <<EOF
+          #!/bin/sh
+          set -e
+          if [ -d /run/systemd/system ] && [ \"\$1\" = remove ]; then
+            deb-systemd-invoke stop 'syncer.service' >/dev/null || true
+            deb-systemd-invoke stop 'syncer.service' >/dev/null || true
+          fi
+          EOF
+
+          ### deb postrm
+          cat > ${{ env.BUILD_DIR }}/DEBIAN/postrm <<EOF
+          #!/bin/sh
+          set -e
+          
+          if [ -d /run/systemd/system ] && [ \"\$1\" = remove ]; then
+            systemctl --system daemon-reload >/dev/null || true
+          fi
+          
+          if [ \"\$1\" = \"remove\" ]; then
+            if [ -x \"/usr/bin/deb-systemd-helper\" ]; then
+              deb-systemd-helper mask 'syncer.service' >/dev/null || true
+            fi
+          fi
+          
+          if [ \"\$1\" = \"purge\" ]; then
+            if [ -x \"/usr/bin/deb-systemd-helper\" ]; then
+              deb-systemd-helper purge 'syncer.service' >/dev/null || true
+              deb-systemd-helper unmask 'syncer.service' >/dev/null || true
+            fi
+          fi
+          EOF
+          
+          ### systemd service file
+          cat > ${{ env.BUILD_DIR }}/lib/systemd/system/syncer.service <<EOF
+          [Unit]
+          Description=Syncer
+          After=network.target
+          
+          [Service]
+          Restart=on-failure
+          User=root
+          LimitNOFILE=1048576
+          RestartSec=5
+          WorkingDirectory=/usr/lib/syncer
+          ExecStart=/usr/bin/php /usr/lib/syncer/syncer.php
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          chmod -R 0755 ${{ env.BUILD_DIR }}/DEBIAN
+          cp ./syncer.php ${{ env.BUILD_DIR }}/usr/lib/syncer/
+          cp ./schema.sql ${{ env.BUILD_DIR }}/usr/lib/syncer/
+          cp ./config.example.ini ${{ env.BUILD_DIR }}/etc/syncer/
+          cp -r ./classes/ ${{ env.BUILD_DIR }}/usr/lib/syncer/
+          cp -r ./vendor/ ${{ env.BUILD_DIR }}/usr/lib/syncer/
+        
+
+      - name: Build Debian package
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install dpkg-dev
+          fakeroot dpkg-deb --build dist syncer_${{ env.VERSION }}.deb 
+
+      - name: Upload Executable
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_draft_release.outputs.upload_url }}
+          asset_path: syncer_${{ env.VERSION }}.deb
+          asset_name: syncer_${{ env.VERSION }}.deb
+          asset_content_type: application/octet-stream
+

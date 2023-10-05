@@ -1,10 +1,11 @@
+#!/usr/bin/env php
 <?php
 declare(strict_types=1);
 
 include 'vendor/autoload.php';
 
 try {
-    $config = new config();
+    $config = new config('/etc/syncer/config.ini');
     $config->checkGlobal();
     $config->defaultsGlobal();
 } catch (Exception $e) {

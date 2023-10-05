@@ -7,7 +7,7 @@ class config {
     /**
      * @throws Exception
      */
-    public function __construct(string $file = 'config.ini')
+    public function __construct(string $file)
     {
         if (!$this->config = parse_ini_file($file, TRUE)) {
             throw new Exception("Could not parse config file $file");
