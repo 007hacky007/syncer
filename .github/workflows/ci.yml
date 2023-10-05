@@ -70,24 +70,24 @@ jobs:
           
           set -e
           
-          case \"\$1\" in
+          case "\$1" in
             configure|abort-upgrade|abort-remove|abort-deconfigure)
               :
             ;;
           
             *)
-              echo \"postinst called with unknown argument '\$1'\" >&2
+              echo "postinst called with unknown argument '\$1'" >&2
               exit 1
             ;;
           esac
           
-          if [ \"\$1\" = \"configure\" ] || [ \"\$1\" = \"abort-upgrade\" ] || [ \"\$1\" = \"abort-deconfigure\" ] || [ \"\$1\" = \"abort-remove\" ] ; then
+          if [ "\$1" = "configure" ] || [ "\$1" = "abort-upgrade" ] || [ "\$1" = "abort-deconfigure" ] || [ "\$1" = "abort-remove" ] ; then
             # This will only remove masks created by d-s-h on package removal.
             deb-systemd-helper unmask 'syncer.service' >/dev/null || true
           
           fi
           
-          if [ \"\$1\" = \"configure\" ] || [ \"\$1\" = \"abort-upgrade\" ] || [ \"\$1\" = \"abort-deconfigure\" ] || [ \"\$1\" = \"abort-remove\" ] ; then
+          if [ "\$1" = "configure" ] || [ "\$1" = "abort-upgrade" ] || [ "\$1" = "abort-deconfigure" ] || [ "\$1" = "abort-remove" ] ; then
             if [ -d /run/systemd/system ]; then
               [ ! -f /var/lib/syncer/db.sqlite ] && sqlite3 /var/lib/syncer/db.sqlite < /usr/lib/syncer/schema.sql && echo "Created empty sqlite db at /var/lib/syncer/db.sqlite"
               systemctl --system daemon-reload >/dev/null || true
@@ -108,7 +108,7 @@ jobs:
           cat > ${{ env.BUILD_DIR }}/DEBIAN/prerm <<EOF
           #!/bin/sh
           set -e
-          if [ -d /run/systemd/system ] && [ \"\$1\" = remove ]; then
+          if [ -d /run/systemd/system ] && [ "\$1" = remove ]; then
             deb-systemd-invoke stop 'syncer.service' >/dev/null || true
             deb-systemd-invoke stop 'syncer.service' >/dev/null || true
           fi
@@ -119,18 +119,18 @@ jobs:
           #!/bin/sh
           set -e
           
-          if [ -d /run/systemd/system ] && [ \"\$1\" = remove ]; then
+          if [ -d /run/systemd/system ] && [ "\$1" = remove ]; then
             systemctl --system daemon-reload >/dev/null || true
           fi
           
-          if [ \"\$1\" = \"remove\" ]; then
-            if [ -x \"/usr/bin/deb-systemd-helper\" ]; then
+          if [ "\$1" = "remove" ]; then
+            if [ -x "/usr/bin/deb-systemd-helper" ]; then
               deb-systemd-helper mask 'syncer.service' >/dev/null || true
             fi
           fi
           
-          if [ \"\$1\" = \"purge\" ]; then
-            if [ -x \"/usr/bin/deb-systemd-helper\" ]; then
+          if [ "\$1" = "purge" ]; then
+            if [ -x "/usr/bin/deb-systemd-helper" ]; then
               deb-systemd-helper purge 'syncer.service' >/dev/null || true
               deb-systemd-helper unmask 'syncer.service' >/dev/null || true
             fi
