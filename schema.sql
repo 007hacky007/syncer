@@ -1,4 +1,4 @@
-create table main.files
+CREATE TABLE files
 (
     id           INTEGER
         primary key autoincrement,
@@ -12,7 +12,5 @@ create table main.files
     constraint files_pk
         unique (src_dir_name, path)
 );
-
-create index main.files_synced_index
-    on main.files (synced);
-
+CREATE INDEX files_synced_index
+    on files (synced);
